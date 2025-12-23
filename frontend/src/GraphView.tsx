@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Network, DataSet, Options } from 'vis-network';
+import { Network } from 'vis-network/standalone/esm/vis-network.js';
+import { DataSet } from 'vis-data/standalone/esm/vis-data.js';
 
 interface Node {
   id: string;
@@ -137,7 +138,7 @@ const GraphView = ({ graph }: GraphViewProps) => {
     };
 
     // Опции сети
-    const options: Options = {
+    const options: any = {
       autoResize: true,
       physics: {
         enabled: true,
