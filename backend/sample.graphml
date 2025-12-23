@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns/graphml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns/graphml http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <graph id="G" edgedefault="directed">
+    <!-- Nodes -->
+    <node id="api-gateway">
+      <data key="label">API Gateway</data>
+      <data key="type">service</data>
+      <data key="env">prod</data>
+      <data key="domain">platform</data>
+      <data key="tags">entrypoint,auth,rate-limit</data>
+      <data key="tier">edge</data>
+      <data key="x">0</data>
+      <data key="y">0</data>
+    </node>
+    <node id="auth-service">
+      <data key="label">Auth Service</data>
+      <data key="type">service</data>
+      <data key="env">prod</data>
+      <data key="domain">security</data>
+      <data key="tags">oauth,jwt</data>
+      <data key="tier">core</data>
+      <data key="x">200</data>
+      <data key="y">-120</data>
+    </node>
+    <node id="orders-service">
+      <data key="label">Orders Service</data>
+      <data key="type">service</data>
+      <data key="env">prod</data>
+      <data key="domain">payments</data>
+      <data key="tags">orders,business</data>
+      <data key="tier">core</data>
+      <data key="x">200</data>
+      <data key="y">0</data>
+    </node>
+    <node id="billing-service">
+      <data key="label">Billing Service</data>
+      <data key="type">service</data>
+      <data key="env">prod</data>
+      <data key="domain">payments</data>
+      <data key="tags">invoices,charges</data>
+      <data key="tier">core</data>
+      <data key="x">200</data>
+      <data key="y">120</data>
+    </node>
+    <node id="postgres">
+      <data key="label">PostgreSQL</data>
+      <data key="type">db</data>
+      <data key="env">prod</data>
+      <data key="domain">data</data>
+      <data key="tags">oltp,primary</data>
+      <data key="tier">storage</data>
+      <data key="x">420</data>
+      <data key="y">20</data>
+    </node>
+    <node id="redis-cache">
+      <data key="label">Redis Cache</data>
+      <data key="type">cache</data>
+      <data key="env">prod</data>
+      <data key="domain">platform</data>
+      <data key="tags">cache,sessions</data>
+      <data key="tier">storage</data>
+      <data key="x">420</data>
+      <data key="y">-160</data>
+    </node>
+    <node id="kafka">
+      <data key="label">Kafka</data>
+      <data key="type">queue</data>
+      <data key="env">prod</data>
+      <data key="domain">platform</data>
+      <data key="tags">events,stream</data>
+      <data key="tier">messaging</data>
+      <data key="x">420</data>
+      <data key="y">160</data>
+    </node>
+    <node id="analytics-worker">
+      <data key="label">Analytics Worker</data>
+      <data key="type">service</data>
+      <data key="env">stage</data>
+      <data key="domain">data</data>
+      <data key="tags">etl,reporting</data>
+      <data key="tier">aux</data>
+      <data key="x">640</data>
+      <data key="y">160</data>
+    </node>
+    <node id="external-payments">
+      <data key="label">External Payments</data>
+      <data key="type">external</data>
+      <data key="env">prod</data>
+      <data key="domain">vendor</data>
+      <data key="tags">third-party,psp</data>
+      <data key="tier">external</data>
+      <data key="x">640</data>
+      <data key="y">120</data>
+    </node>
+
+    <!-- Edges -->
+    <edge source="api-gateway" target="auth-service">
+      <data key="label">login/refresh</data>
+      <data key="kind">sync</data>
+      <data key="protocol">http</data>
+      <data key="criticality">high</data>
+      <data key="weight">2.0</data>
+      <data key="env">prod</data>
+      <data key="tags">auth,entry</data>
+    </edge>
+    <edge source="api-gateway" target="orders-service">
+      <data key="label">create order</data>
+      <data key="kind">sync</data>
+      <data key="protocol">grpc</data>
+      <data key="criticality">high</data>
+      <data key="weight">2.5</data>
+      <data key="env">prod</data>
+      <data key="tags">orders,entry</data>
+    </edge>
+    <edge source="orders-service" target="postgres">
+      <data key="label">read/write</data>
+      <data key="kind">sync</data>
+      <data key="protocol">sql</data>
+      <data key="criticality">high</data>
+      <data key="weight">3.0</data>
+      <data key="env">prod</data>
+      <data key="tags">storage,oltp</data>
+    </edge>
+    <edge source="api-gateway" target="redis-cache">
+      <data key="label">sessions</data>
+      <data key="kind">sync</data>
+      <data key="protocol">tcp</data>
+      <data key="criticality">medium</data>
+      <data key="weight">1.5</data>
+      <data key="env">prod</data>
+      <data key="tags">cache,sessions</data>
+    </edge>
+    <edge source="orders-service" target="kafka">
+      <data key="label">OrderCreated</data>
+      <data key="kind">stream</data>
+      <data key="protocol">kafka</data>
+      <data key="criticality">medium</data>
+      <data key="weight">1.2</data>
+      <data key="env">prod</data>
+      <data key="tags">events,orders</data>
+    </edge>
+    <edge source="analytics-worker" target="kafka">
+      <data key="label">consume events</data>
+      <data key="kind">stream</data>
+      <data key="protocol">kafka</data>
+      <data key="criticality">low</data>
+      <data key="weight">0.8</data>
+      <data key="env">stage</data>
+      <data key="tags">etl,events</data>
+    </edge>
+    <edge source="billing-service" target="external-payments">
+      <data key="label">reserve/capture</data>
+      <data key="kind">async</data>
+      <data key="protocol">grpc</data>
+      <data key="criticality">high</data>
+      <data key="weight">2.2</data>
+      <data key="env">prod</data>
+      <data key="tags">payments,orders</data>
+    </edge>
+    <edge source="billing-service" target="postgres">
+      <data key="label">charge</data>
+      <data key="kind">sync</data>
+      <data key="protocol">http</data>
+      <data key="criticality">high</data>
+      <data key="weight">2.8</data>
+      <data key="env">prod</data>
+      <data key="tags">vendor,psp</data>
+    </edge>
+  </graph>
+</graphml>
