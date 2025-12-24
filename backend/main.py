@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import networkx as nx
 from xml.etree import ElementTree as ET
 import io
@@ -51,6 +51,82 @@ def parse_tags(tags_str: str) -> List[str]:
     return [t.strip() for t in tags_str.split(",") if t.strip()]
 
 
+def parse_graphml_xml(content: bytes) -> Dict[str, Any]:
+    """
+    Парсит GraphML используя XML парсер напрямую
+    Извлекает атрибуты из <data> элементов внутри узлов/рёбер
+    и также из прямых атрибутов элементов
+    """
+    root = ET.fromstring(content)
+    
+    # Регистрируем namespace
+    ns = {'g': 'http://graphml.graphdrawing.org/xmlns'}
+    
+    # Ищем элементы без namespace (если их нет)
+    graph = root.find('.//graph')
+    if graph is None:
+        # Пробуем с namespace
+        graph = root.find('.//g:graph', ns)
+    
+    if graph is None:
+        raise ValueError("Graph element not found")
+    
+    nodes_dict = {}
+    edges_list = []
+    
+    # Парсим узлы
+    for node_elem in graph.findall('.//node') + graph.findall('.//g:node', ns):
+        node_id = node_elem.get('id')
+        if not node_id:
+            continue
+        
+        node_data = {'id': node_id}
+        
+        # Извлекаем data элементы
+        for data_elem in node_elem.findall('data') + node_elem.findall('g:data', ns):
+            key = data_elem.get('key')
+            value = data_elem.text or data_elem.get('value', '')
+            if key and value:
+                node_data[key] = value
+        
+        # Также проверяем атрибуты напрямую на элементе
+        for attr in ['label', 'type', 'env', 'domain', 'tags', 'tier', 'x', 'y']:
+            if attr not in node_data and node_elem.get(attr):
+                node_data[attr] = node_elem.get(attr)
+        
+        nodes_dict[node_id] = node_data
+    
+    # Парсим рёбра
+    for edge_elem in graph.findall('.//edge') + graph.findall('.//g:edge', ns):
+        edge_id = edge_elem.get('id')
+        source = edge_elem.get('source')
+        target = edge_elem.get('target')
+        
+        if not (edge_id and source and target):
+            continue
+        
+        edge_data = {'id': edge_id, 'source': source, 'target': target}
+        
+        # Извлекаем data элементы
+        for data_elem in edge_elem.findall('data') + edge_elem.findall('g:data', ns):
+            key = data_elem.get('key')
+            value = data_elem.text or data_elem.get('value', '')
+            if key and value:
+                edge_data[key] = value
+        
+        # Также проверяем атрибуты напрямую на элементе
+        for attr in ['label', 'kind', 'criticality', 'protocol', 'env', 'tags', 'weight']:
+            if attr not in edge_data and edge_elem.get(attr):
+                edge_data[attr] = edge_elem.get(attr)
+        
+        edges_list.append(edge_data)
+    
+    return {
+        'nodes': nodes_dict,
+        'edges': edges_list
+    }
+
+
 @app.get("/")
 async def root():
     """Health check"""
@@ -71,7 +147,7 @@ async def graphml_to_json(file: UploadFile = File(...)):
     Преобразование GraphML файла в JSON
     
     1. Валидирует XML структуру
-    2. Парсит с помощью networkx
+    2. Парсит GraphML и извлекает узлы/рёбра
     3. Проверяет обязательные поля и значения
     4. Возвращает JSON с nodes и edges
     """
@@ -91,9 +167,11 @@ async def graphml_to_json(file: UploadFile = File(...)):
     # Валидация как XML
     validate_xml(content)
     
-    # Парсинг GraphML с помощью networkx
+    # Парсинг GraphML
     try:
-        G = nx.read_graphml(io.BytesIO(content))
+        parsed = parse_graphml_xml(content)
+        nodes_dict = parsed['nodes']
+        edges_list = parsed['edges']
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -101,12 +179,12 @@ async def graphml_to_json(file: UploadFile = File(...)):
         )
     
     # Валидация узлов
-    node_ids = set(G.nodes())
+    node_ids = set(nodes_dict.keys())
     nodes_output = []
     
-    for node_id, data in G.nodes(data=True):
-        label = data.get("label")
-        ntype = data.get("type")
+    for node_id, node_data in nodes_dict.items():
+        label = node_data.get("label")
+        ntype = node_data.get("type")
         
         # Проверка обязательных полей
         if not label:
@@ -129,13 +207,13 @@ async def graphml_to_json(file: UploadFile = File(...)):
             )
         
         # Опциональные поля
-        env = data.get("env")
-        domain = data.get("domain")
-        tags_str = data.get("tags", "")
+        env = node_data.get("env")
+        domain = node_data.get("domain")
+        tags_str = node_data.get("tags", "")
         tags = parse_tags(tags_str)
-        tier = data.get("tier")
-        x = to_float(data.get("x"))
-        y = to_float(data.get("y"))
+        tier = node_data.get("tier")
+        x = to_float(node_data.get("x"))
+        y = to_float(node_data.get("y"))
         
         nodes_output.append({
             "id": node_id,
@@ -152,7 +230,10 @@ async def graphml_to_json(file: UploadFile = File(...)):
     # Валидация рёбер
     edges_output = []
     
-    for edge_idx, (u, v, data) in enumerate(G.edges(data=True), start=1):
+    for edge_idx, edge_data in enumerate(edges_list, start=1):
+        u = edge_data.get("source")
+        v = edge_data.get("target")
+        
         # Проверка существования узлов
         if u not in node_ids or v not in node_ids:
             raise HTTPException(
@@ -160,9 +241,9 @@ async def graphml_to_json(file: UploadFile = File(...)):
                 detail=f"Edge {u}->{v} references missing node(s)"
             )
         
-        label = data.get("label")
-        kind = data.get("kind")
-        criticality = data.get("criticality")
+        label = edge_data.get("label")
+        kind = edge_data.get("kind")
+        criticality = edge_data.get("criticality")
         
         # Проверка обязательных полей
         if not label:
@@ -197,13 +278,13 @@ async def graphml_to_json(file: UploadFile = File(...)):
             )
         
         # Опциональные поля
-        protocol = data.get("protocol")
-        env = data.get("env")
-        tags_str = data.get("tags", "")
+        protocol = edge_data.get("protocol")
+        env = edge_data.get("env")
+        tags_str = edge_data.get("tags", "")
         tags = parse_tags(tags_str)
         
         # Вес ребра - обработка ошибок
-        weight_val = data.get("weight")
+        weight_val = edge_data.get("weight")
         try:
             weight = float(weight_val) if weight_val is not None else 1.0
         except (ValueError, TypeError):
