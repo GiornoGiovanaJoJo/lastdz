@@ -7,9 +7,17 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    // Отключаем worker pool полностью
+    // Полностью отключаем многопроцессность
     threads: false,
     isolate: false,
+    singleThread: true,
+    // Отключаем pool
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
   },
   resolve: {
     alias: {
