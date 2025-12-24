@@ -8,9 +8,15 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    threads: {
-      singleThread: true,
+    // Disable workers to avoid module resolution issues
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
     },
+    // Alternative: use no workers at all
+    // threads: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
