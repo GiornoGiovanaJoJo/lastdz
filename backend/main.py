@@ -57,7 +57,11 @@ async def root():
     return {
         "status": "ok",
         "message": "GraphML Visualizer API v1.0.0",
-        "endpoint": "/api/graphml-to-json"
+        "endpoints": {
+            "api": "/api/graphml-to-json",
+            "docs": "/docs",
+            "redoc": "/redoc"
+        }
     }
 
 
@@ -73,7 +77,7 @@ async def graphml_to_json(file: UploadFile = File(...)):
     """
     
     # Проверка расширения файла
-    if not file.filename.endswith(".graphml"):
+    if not file.filename.lower().endswith(".graphml"):
         raise HTTPException(
             status_code=400,
             detail="File must have .graphml extension"
@@ -198,7 +202,7 @@ async def graphml_to_json(file: UploadFile = File(...)):
         tags_str = data.get("tags", "")
         tags = parse_tags(tags_str)
         
-        # Вес ребра
+        # Вес ребра - обработка ошибок
         weight_val = data.get("weight")
         try:
             weight = float(weight_val) if weight_val is not None else 1.0
