@@ -6,10 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test": "vitest --no-coverage --run",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -22,14 +19,7 @@
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@vitejs/plugin-react": "^4.2.1",
-    "@testing-library/react": "^14.1.2",
-    "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/user-event": "^14.5.1",
-    "@vitest/ui": "^1.0.4",
-    "@vitest/coverage-v8": "^1.0.4",
-    "jsdom": "^23.0.1",
     "typescript": "^5.2.2",
-    "vite": "^5.0.8",
-    "vitest": "^1.0.4"
+    "vite": "^5.0.8"
   }
 }
