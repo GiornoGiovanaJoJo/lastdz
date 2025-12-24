@@ -1,19 +1,15 @@
 import { defineConfig } from 'vitest/config';
-import vue from '@vitejs/plugin-vue';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
-  plugins: [vue(), react()],
+  plugins: [react()],
   test: {
     globals: true,
     environment: 'jsdom',
-    pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
+    // Отключаем worker pool полностью
+    threads: false,
+    isolate: false,
   },
   resolve: {
     alias: {
