@@ -1,26 +1,18 @@
-FROM node:18-alpine AS build
+FROM node:18-alpine
 
 WORKDIR /app
-
-# Копируем package.json
-COPY package.json package-lock.json ./
-
-# Устанавливаем зависимости
-RUN npm ci
-
-# Копируем код приложения
-COPY . .
-
-# Стадия разработки
-FROM node:18-alpine AS dev
-
-WORKDIR /app
-
-# Копируем зависимости из билд-стеджа
-COPY --from=build /app .
 
 # Устанавливаем curl для health check
 RUN apk add --no-cache curl
+
+# Копируем package.json
+COPY package.json ./
+
+# Устанавливаем зависимости
+RUN npm install
+
+# Копируем весь код приложения
+COPY . .
 
 # Expose порт
 EXPOSE 5173
